@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import List, Set
 
-from dhtpy.dht.structures import Node, Peer
+from dhtpy.dht.structures import Bucket, Node, Peer
 
 
 class SimpleRoutingTable:
     def __init__(self, max_size: int = 10000):
         self.max_size = max_size
-        self.nodes: List[Node] = []
+        self.nodes: List[Node] = list()
 
     @property
     def is_full(self) -> bool:
@@ -24,50 +24,59 @@ class SimpleRoutingTable:
         return not self.is_full
 
 
-class RoutingTable(SimpleRoutingTable):
+class RoutingTable:
     """More complex routing table, not using buckets as for now"""
 
     def __init__(self, max_size: int = 10000):
-        super().__init__(max_size)
-        self.nodes: dict[bytes, Node] = {}  # type: ignore
+        self.max_size = max_size
+        self.buckets: Set[Bucket] = {
+            Bucket(0, 2 ** 160),
+        }
 
     @property
-    def is_full(self) -> bool:
-        return len(self.nodes.values()) > self.max_size
+    def nodes(self) -> List[Node]:
+        return []
 
     @property
-    def unheard_nodes(self) -> Set[Node]:
-        return {node for node in self.nodes.values() if node.is_unheard}
+    def unheard_nodes(self) -> List[Node]:
+        return [node for node in self.nodes if node.is_unheard]
 
     @property
-    def offline_nodes(self) -> Set[Node]:
-        return {node for node in self.nodes.values() if node.is_offline}
+    def offline_nodes(self) -> List[Node]:
+        return [node for node in self.nodes if node.is_offline]
 
-    def add(self, node: Node):
-        if node not in self.nodes.values():
-            self.nodes[node.nid] = node
-        else:
-            # Node is already in the routing table, update last contact
-            node.update_last_contact()
+    def _split(self, bucket: Bucket) -> bool:
+        pass
+
+    def add(self, node: Node) -> bool:
+        # TODO: fix
+        for bucket in self.buckets:
+            if bucket.in_range(node.id):
+                pass
+
+        return False
+        # Node is already in the routing table, update last contact
+        node.update_last_contact()
 
     def add_peer(self, peer: Peer, node: Node):
-        self.nodes[node.nid].peers[peer.info_hash] = peer
+        # TODO: fix
+        self.nodes[node.id].peers[peer.info_hash] = peer
 
-    def get_closest_nodes(self, nid: bytes, limit=10):
+    def get_closest_nodes(self, nid: int, limit=10):
         """Get closest nodes to `node`, with a limit of `limit`"""
         return sorted(
-            self.nodes.values(),
-            key=lambda node: Node.calculate_distance(nid, node.nid),
+            self.nodes,
+            key=lambda node: Node.calculate_distance(nid, node.id),
         )[:limit]
 
     def get_peers(self, infohash: bytes) -> List[Peer]:
         peers = []
-        for node in self.nodes.values():
+        for node in self.nodes:
             if node.peers.get(infohash):
                 peers.append(node.peers.get(infohash))
         return peers
 
     def remove_offline_nodes(self):
         self.nodes = {
-            node.nid: node for node in self.nodes.values() if not node.is_offline
+            node.id: node for node in self.nodes.values() if not node.is_offline
         }

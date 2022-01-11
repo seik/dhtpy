@@ -28,19 +28,19 @@ class DHTDispatcher:
 
     def _get_node_from_data(self, address: Tuple[str, int], data: dict):
         port = address[1]
-        node_id = None
 
+        node_id = 0
         if b"a" in data:
-            node_id = data[b"a"][b"id"]
+            node_id = int.from_bytes(data[b"a"][b"id"], "big")
 
         if b"r" in data:
-            node_id = data[b"r"][b"id"]
+            node_id = int.from_bytes(data[b"r"][b"id"], "big")
 
         # For queries, if implied_port == 0 then use the port of the data, with the
         # port of the node as fallback in case of a malformed response
         if data.get(b"a") and not data[b"a"].get(b"implied_port", 0):
             port = data[b"a"].get(b"port", address[1])
-        return Node(nid=node_id, address=address[0], port=port)
+        return Node(id=node_id, address=address[0], port=port)
 
     # Handlers
     # Responses
@@ -58,12 +58,13 @@ class DHTDispatcher:
         self.on_find_node_response(cast(bytes, data.get(b"t")), decoded_nodes)
 
     def _ping_response(self, node: Node, data: dict):
-        self.on_ping_node_response(
+        self.on_ping_response(
             tid=cast(bytes, data.get(b"t")),
-            node=Node(nid=node.nid, address=node.address, port=node.port),
+            node=Node(id=node.id, address=node.address, port=node.port),
         )
 
     def _detect_packet_type_handler(self, data: dict):
+        method_name = None
         if data.get(b"y") == b"q":
             query = data.get(b"b")
             if query == b"announce_peer":
@@ -89,7 +90,7 @@ class DHTDispatcher:
                 method_name = "ping_response"
 
         try:
-            return self._handlers[method_name]
+            return self._handlers[method_name]  # type: ignore
         except KeyError:
             return None
 
@@ -114,7 +115,7 @@ class DHTDispatcher:
 
     # Responses
     @abstractmethod
-    def on_ping_node_response(self, tid: bytes, node: Node):
+    def on_ping_response(self, tid: bytes, node: Node):
         pass
 
     @abstractmethod
@@ -133,7 +134,7 @@ class DHTDispatcher:
 
     @abstractmethod
     def on_announce_peer_response(
-        self, tid: bytes, nid: bytes, info_hash: bytes, node: Node
+        self, tid: bytes, nid: int, info_hash: bytes, node: Node
     ) -> None:
         pass
 

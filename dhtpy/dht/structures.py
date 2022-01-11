@@ -5,13 +5,14 @@ import struct
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from ipaddress import ip_address
+from random import randrange
 
 from expiringdict import ExpiringDict  # type: ignore
 
 
 @dataclass
 class Node:
-    nid: bytes
+    id: int
     address: str
     port: int
     peers = ExpiringDict(max_len=1000, max_age_seconds=3600 * 24)
@@ -22,14 +23,10 @@ class Node:
     def compact_info(self):
         return struct.pack(
             "!20s4sH",
-            self.nid,
+            self.id.to_bytes(20, "big"),
             bytes(self.address.encode("ascii")),
             int(self.port),
         )
-
-    @property
-    def hex_id(self) -> str:
-        return self.nid.hex()
 
     @property
     def is_address_public(self) -> bool:
@@ -52,12 +49,12 @@ class Node:
         return datetime.now() > (self.last_contact + timedelta(minutes=20))
 
     def __hash__(self) -> int:
-        return hash(self.nid.hex() + self.address + str(self.port))
+        return hash(str(self.id) + self.address + str(self.port))
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Node):
             return (
-                self.nid == other.nid
+                self.id == other.id
                 and self.address == other.address
                 and self.port == other.port
             )
@@ -67,27 +64,19 @@ class Node:
         """
         Represents the node in an hex format using the nid.
         """
-        return self.hex_id
+        return str(self.id)
 
     @classmethod
     def create_random(cls, address: str, port: int) -> Node:
         """
         Creates a random node with the desired address and port.
         """
-        nid = Node.generate_random_id()
+        nid = randrange(2 ** 160)
         return cls(nid, address, port)
 
     @staticmethod
-    def generate_random_id() -> bytes:
-        """
-        Generates a random node id which consists of 20 bytes.
-        """
-        return os.urandom(20)
-
-    @staticmethod
-    def calculate_distance(nid: bytes, another_nid: bytes) -> int:
-        bytes_distance = bytes(a ^ b for a, b in zip(nid, another_nid))
-        return int.from_bytes(bytes_distance, byteorder="big")
+    def calculate_distance(nid: int, another_nid: int) -> int:
+        return nid ^ another_nid
 
     def update_last_contact(self):
         self.last_contact = datetime.now()
@@ -102,3 +91,20 @@ class Peer:
     @property
     def compact_info(self):
         return struct.pack("!4sH", self.ip.encode("ascii"), self.port)
+
+
+@dataclass
+class Bucket:
+    start: int
+    end: int
+    capacity: int = 8
+
+    def __hash__(self) -> int:
+        return hash((self.start, self.end))
+
+    @property
+    def half(self) -> int:
+        return (self.end + self.start) >> 1
+
+    def in_range(self, nid: int) -> bool:
+        return self.start <= nid < self.end

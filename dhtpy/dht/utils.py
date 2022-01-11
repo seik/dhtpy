@@ -21,7 +21,7 @@ def decode_nodes(encoded_nodes: bytes) -> List[Node]:
     for i in range(0, len(encoded_nodes), 26):
         bytes_node = encoded_nodes[i : i + 26]
 
-        nid = bytes_node[:20]
+        nid = int.from_bytes(bytes_node[:20], "big")
 
         try:
             address = inet_ntoa(bytes_node[20:24])
@@ -31,7 +31,7 @@ def decode_nodes(encoded_nodes: bytes) -> List[Node]:
 
         port = int.from_bytes(bytes_node[24:], "big")
 
-        node = Node(nid=nid, address=address, port=port)
+        node = Node(id=nid, address=address, port=port)
         decoded_nodes.append(node)
     return decoded_nodes
 

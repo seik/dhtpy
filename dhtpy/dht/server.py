@@ -24,7 +24,7 @@ class Server(DHTDispatcher):
         """
         self.node = Node.create_random(ADDRESS, PORT)
         # Transaction id used for all queries
-        self.tid = self.node.nid[:2]
+        self.tid = os.urandom(2)
 
         self.rpc: RPC = RPC()
 
@@ -63,7 +63,7 @@ class Server(DHTDispatcher):
             {
                 b"t": data[b"t"],
                 b"y": b"r",
-                b"r": {b"id": self.node.nid},
+                b"r": {b"id": self.node.id},
             },
         )
 
@@ -75,7 +75,7 @@ class Server(DHTDispatcher):
                 b"t": data[b"t"],
                 b"y": b"r",
                 b"r": {
-                    b"id": self.node.nid,
+                    b"id": self.node.id,
                     b"nodes": join_nodes_compact_info(closest_nodes),
                 },
             },
@@ -96,7 +96,7 @@ class Server(DHTDispatcher):
             {
                 b"t": data[b"t"],
                 b"y": b"r",
-                b"r": {b"id": node.nid},
+                b"r": {b"id": node.id},
             },
         )
 
@@ -109,7 +109,7 @@ class Server(DHTDispatcher):
                     b"t": data[b"t"],
                     b"y": b"r",
                     b"r": {
-                        b"id": self.node.nid,
+                        b"id": self.node.id,
                         b"token": os.urandom(2),
                         b"values": [peer.compact_info for peer in peers],
                     },
@@ -125,22 +125,25 @@ class Server(DHTDispatcher):
                     b"t": data[b"t"],
                     b"y": b"r",
                     b"r": {
-                        b"id": self.node.nid,
+                        b"id": self.node.id,
                         b"nodes": join_nodes_compact_info(closest_nodes),
                     },
                 },
             )
 
     # Responses
+    def on_ping_response(self, tid: bytes, node: Node):
+        # TODO fix, not needed
+        return super().on_ping_response(tid, node)
+
     def on_find_node_response(self, tid: bytes, nodes: List[Node]):
         """Found a node, if the table is not full and the node is valid, add it"""
-        if not self.routing_table.is_full:
-            nodes = [node for node in nodes if self.node != node and node.is_valid]
-            for node in nodes:
-                self.routing_table.add(node)
+        nodes = [node for node in nodes if self.node != node and node.is_valid]
+        for node in nodes:
+            self.routing_table.add(node)
 
     def on_announce_peer_response(
-        self, tid: bytes, nid: bytes, info_hash: bytes, node: Node
+        self, tid: bytes, nid: int, info_hash: bytes, node: Node
     ):
         logger.debug(f"On announce peer, infohash {info_hash.hex()}")
 
@@ -151,23 +154,22 @@ class Server(DHTDispatcher):
 
     # Messages
     def ping_node(self, node: Union[Node, Tuple[str, int]]):
-        self.rpc.ping_node(self.node.nid, node)
+        self.rpc.ping_node(self.node.id, node)
 
     def find_node(self, node: Node):
-        self.rpc.find_node(self.node.nid, node)
+        self.rpc.find_node(self.node.id, node)
 
     def announce_peer(self, node: Union[Node, Tuple[str, int]]):
-        self.rpc.announce_peer(self.tid, self.node.nid, node)
+        self.rpc.announce_peer(self.tid, self.node.id, node)
 
     def get_peers(
         self,
-        node: Union[Node, Tuple[str, int]],
         info_hash: bytes,
         no_seed: bool = False,
         scrape: bool = False,
     ) -> None:
-        address = node.address if type(node) is Node else node
-        self.rpc.get_peers(self.tid, info_hash, self.node.nid, node, no_seed, scrape)
+        # TODO: fix None, should be a node to contact, using closest in routing table
+        self.rpc.get_peers(self.tid, info_hash, None, self.node.id, no_seed, scrape)  # type: ignore
 
     async def start(self, address: str = "0.0.0.0", port: int = 6881, run_forever=True):
         await self.rpc.start()
@@ -189,5 +191,7 @@ class Server(DHTDispatcher):
 
 
 if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
     server = Server()
-    asyncio.run(server.start())
+    loop.run_until_complete(server.start(run_forever=False))
+    loop.run_forever()
