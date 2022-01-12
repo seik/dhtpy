@@ -17,7 +17,7 @@ from dhtpy.bittorrent.utils import get_random_peer_id
 from dhtpy.config import (
     DEBUG_LEVEL,
     METADATA_FETCH_TIMEOUT,
-    METADATA_MAX_SIMULTANEOUS_WORKERS_PER_infohash,
+    METADATA_MAX_SIMULTANEOUS_WORKERS_PER_INFOHASH,
 )
 
 logging.basicConfig(level=DEBUG_LEVEL)
@@ -263,7 +263,7 @@ class MetadataFetcher:
 
         if (
             parent_future.child_count  # type: ignore
-            >= METADATA_MAX_SIMULTANEOUS_WORKERS_PER_infohash
+            >= METADATA_MAX_SIMULTANEOUS_WORKERS_PER_INFOHASH
         ):
             return
 
