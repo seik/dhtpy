@@ -6,6 +6,9 @@ from dhtpy.dht.structures import Bucket, Node, Peer
 
 
 class SimpleRoutingTable:
+    """Naive implementation of the DHT routing table, not efficient but it works
+    for simple scenarios."""
+
     def __init__(self, max_size: int = 10000):
         self.max_size = max_size
         self.nodes: List[Node] = list()
@@ -25,44 +28,67 @@ class SimpleRoutingTable:
 
 
 class RoutingTable:
-    """More complex routing table, not using buckets as for now"""
+    """Routing table of the DHT using buckets."""
 
-    def __init__(self, max_size: int = 10000):
-        self.max_size = max_size
-        self.buckets: Set[Bucket] = {
-            Bucket(0, 2 ** 160),
-        }
+    def __init__(self):
+        self.buckets: List[Bucket] = [
+            Bucket(),
+        ]
+
+    def __contains__(self, item):
+        if isinstance(item, Node):
+            for bucket in self.buckets:
+                if bucket.in_range(item.id):
+                    return item in bucket
+        return False
 
     @property
-    def nodes(self) -> List[Node]:
-        return []
+    def nodes(self) -> Set[Node]:
+        # TODO revisit this
+        """Returns all nodes of the routing table in a set."""
+        nodes = set()
+        for bucket in self.buckets:
+            for node in bucket.nodes:
+                nodes.add(node)
+        return nodes
 
     @property
     def unheard_nodes(self) -> List[Node]:
+        """Returns all nodes that are unheard (15 mins no contact) in
+        the routing table"""
         return [node for node in self.nodes if node.is_unheard]
 
     @property
     def offline_nodes(self) -> List[Node]:
+        """Returns all nodes that are offline (20 mins no contact) in
+        the routing table"""
         return [node for node in self.nodes if node.is_offline]
 
-    def _split(self, bucket: Bucket) -> bool:
-        pass
-
     def add(self, node: Node) -> bool:
-        # TODO: fix
+        """Add a node to the routing table, returns if the node has been added.
+        If the node belongs to a node that is full this method will attempt to
+        split the bucket and add it.
+        """
         for bucket in self.buckets:
             if bucket.in_range(node.id):
-                pass
+                added = bucket.add(node)
+
+                if added:
+                    return True
+
+                # Node not added, if we can split the bucket, split it and
+                # try again to add the node
+                if not added and self.split(bucket):
+                    return self.add(node)
 
         return False
-        # Node is already in the routing table, update last contact
-        node.update_last_contact()
 
     def add_peer(self, peer: Peer, node: Node):
         # TODO: fix
-        self.nodes[node.id].peers[peer.info_hash] = peer
+        self.nodes[node.id].peers[peer.infohash] = peer
 
-    def get_closest_nodes(self, nid: int, limit=10):
+    def get_closest_nodes(self, nid: bytes, limit=10):
+        # TODO: revisit this
         """Get closest nodes to `node`, with a limit of `limit`"""
         return sorted(
             self.nodes,
@@ -70,13 +96,34 @@ class RoutingTable:
         )[:limit]
 
     def get_peers(self, infohash: bytes) -> List[Peer]:
+        # TODO: revisit this
         peers = []
         for node in self.nodes:
             if node.peers.get(infohash):
                 peers.append(node.peers.get(infohash))
         return peers
 
-    def remove_offline_nodes(self):
-        self.nodes = {
-            node.id: node for node in self.nodes.values() if not node.is_offline
-        }
+    def split(self, bucket: Bucket) -> bool:
+        # Maximum number of buckets is 160 per the specification
+        if len(self.nodes) == 160:
+            return False
+
+        # Cannot split the bucket if there is other bucket bigger than this
+        if list(self.buckets).index(bucket) + 1 < len(self.buckets):
+            return False
+
+        # Create the new buckets and move nodes between the two
+        buckets = [
+            Bucket(start=bucket.start, end=bucket.half),
+            Bucket(start=bucket.half, end=bucket.end),
+        ]
+        for new_bucket in buckets:
+            for node in bucket.nodes:
+                if new_bucket.in_range(node):
+                    new_bucket.add(node)
+
+        # Replace old bucket and add new one
+        old_bucket_index = self.buckets.index(bucket)
+        self.buckets[old_bucket_index] = buckets[0]
+        self.buckets.append(buckets[1])
+        return True

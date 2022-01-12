@@ -4,6 +4,7 @@ import logging
 from typing import Callable, Optional, Tuple, Union
 
 from black import os
+
 from dhtpy.bittorrent.bencoding import BencoderError, decode, encode
 from dhtpy.config import DEBUG_LEVEL
 from dhtpy.dht.structures import Node
@@ -40,7 +41,7 @@ class RPC:
         if self.on_bandwidth_exhausted:
             self.on_bandwidth_exhausted()
 
-    def ping_node(self, nid: int, node: Union[Node, Tuple[str, int]]):
+    def ping_node(self, nid: bytes, node: Union[Node, Tuple[str, int]]):
         data = {
             b"y": b"q",
             b"q": b"ping",
@@ -49,7 +50,7 @@ class RPC:
         }
         self.send_message(node, data)
 
-    def find_node(self, nid: int, node: Node):
+    def find_node(self, nid: bytes, node: Node):
         data = {
             b"y": b"q",
             b"q": b"find_node",
@@ -74,15 +75,15 @@ class RPC:
     async def start(self):
         await self.udp_node.start()
 
-    def announce_peer(self, tid: bytes, nid: int, node: Union[Node, Tuple[str, int]]):
+    def announce_peer(self, tid: bytes, nid: bytes, node: Union[Node, Tuple[str, int]]):
         data = {b"t": tid, b"y": b"r", b"r": {b"id": nid}}
         self.send_message(node, data)
 
     def get_peers(
         self,
-        info_hash: bytes,
+        infohash: bytes,
         node: Node,
-        nid: int,
+        nid: bytes,
         no_seed=False,
         scrape=False,
     ):
@@ -92,7 +93,7 @@ class RPC:
             b"y": b"q",
             b"a": {
                 b"id": nid,
-                b"info_hash": info_hash,
+                b"infohash": infohash,
             },
         }
 

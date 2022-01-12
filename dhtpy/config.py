@@ -15,5 +15,5 @@ DHT_BOOTSTRAP_NODES = [
     Node(1, "dht.transmissionbt.com", 6881),
     Node(1, "router.utorrent.com", 6881),
 ]
-METADATA_MAX_SIMULTANEOUS_WORKERS_PER_INFO_HASH = 3
+METADATA_MAX_SIMULTANEOUS_WORKERS_PER_infohash = 3
 METADATA_FETCH_TIMEOUT = 100  # In seconds

@@ -134,7 +134,7 @@ class DHTDispatcher:
 
     @abstractmethod
     def on_announce_peer_response(
-        self, tid: bytes, nid: int, info_hash: bytes, node: Node
+        self, tid: bytes, nid: bytes, infohash: bytes, node: Node
     ) -> None:
         pass
 

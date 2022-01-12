@@ -30,23 +30,23 @@ def is_extension_message(message: bytes) -> bool:
     return message[0] == 20 and message[1] == 1
 
 
-def is_handshake_valid(message: bytes, info_hash: bytes) -> bool:
+def is_handshake_valid(message: bytes, infohash: bytes) -> bool:
     """
     Checks the information of the handshake to see if the peer
     is eligible to share metadata.
     """
     return (
         has_bt_protocol_prefix(message)
-        and is_info_hash_valid(message, info_hash)
+        and is_infohash_valid(message, infohash)
         and supports_metadata_exchange(message)
     )
 
 
-def is_info_hash_valid(data: bytes, info_hash: bytes) -> bool:
+def is_infohash_valid(data: bytes, infohash: bytes) -> bool:
     """
-    Checks if the info_hash sent by another peer matches ours.
+    Checks if the infohash sent by another peer matches ours.
     """
-    return data[28:48] == info_hash
+    return data[28:48] == infohash
 
 
 def is_metadata_size_valid(message_dict: dict, max_metadata_size: int):

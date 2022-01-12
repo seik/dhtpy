@@ -9,7 +9,7 @@ PEER_ID_PREFIX: 8 bytes used as an unique ID for the client. "SL" is the
 
 The full handshake message consists of:
 
-<PSTR_LEN><PSTR><RESERVED><INFO_HASH><PEER_ID>
+<PSTR_LEN><PSTR><RESERVED><infohash><PEER_ID>
 
 The full handshake consists of 68 bytes.
 """

@@ -17,7 +17,7 @@ from dhtpy.bittorrent.utils import get_random_peer_id
 from dhtpy.config import (
     DEBUG_LEVEL,
     METADATA_FETCH_TIMEOUT,
-    METADATA_MAX_SIMULTANEOUS_WORKERS_PER_INFO_HASH,
+    METADATA_MAX_SIMULTANEOUS_WORKERS_PER_infohash,
 )
 
 logging.basicConfig(level=DEBUG_LEVEL)
@@ -29,14 +29,14 @@ PeerAddress = Tuple[str, int]
 class MetadataWorker:
     def __init__(
         self,
-        info_hash: bytes,
+        infohash: bytes,
         peer_address: PeerAddress,
         max_metadata_size: int = 10_000_000,
     ):
         self._peer_id = get_random_peer_id()
         self._peer_address = peer_address
 
-        self._info_hash = info_hash
+        self._infohash = infohash
 
         self._reader: Optional[StreamReader] = None
         self._writer: Optional[StreamWriter] = None
@@ -113,7 +113,7 @@ class MetadataWorker:
             self._metadata_received += len(metadata_piece)
 
             if self._metadata_received == self._metadata_size:
-                if hashlib.sha1(self._metadata).digest() == self._info_hash:
+                if hashlib.sha1(self._metadata).digest() == self._infohash:
                     if not self._metadata_future.done():
                         self._metadata_future.set_result(bytes(self._metadata))
                 else:
@@ -155,13 +155,13 @@ class MetadataWorker:
                 *self._peer_address, loop=event_loop
             )
 
-            self._writer.write(BT_PROTOCOL_PREFIX + self._info_hash + self._peer_id)
+            self._writer.write(BT_PROTOCOL_PREFIX + self._infohash + self._peer_id)
 
             message = await self._reader.readexactly(68)
 
-            if not bt_utils.is_handshake_valid(message, self._info_hash):
+            if not bt_utils.is_handshake_valid(message, self._infohash):
                 raise InvalidHandshake(
-                    f"Invalid handshake for {self._info_hash.hex()} from peer {self._peer_address}."
+                    f"Invalid handshake for {self._infohash.hex()} from peer {self._peer_address}."
                 )
 
             self._on_handshake()
@@ -176,7 +176,7 @@ class MetadataWorker:
             pass
         except Exception as e:
             logger.debug(
-                f"There was an error retrieving metadata for {self._info_hash.hex()} from peer {self._peer_address}."
+                f"There was an error retrieving metadata for {self._infohash.hex()} from peer {self._peer_address}."
             )
             logger.exception(e)
         finally:
@@ -190,11 +190,11 @@ class MetadataWorker:
 
 
 async def fetch_metadata(
-    info_hash: bytes, peer_address: PeerAddress, max_metadata_size: int
+    infohash: bytes, peer_address: PeerAddress, max_metadata_size: int
 ) -> Optional[bytes]:
     try:
         result = await asyncio.wait_for(
-            MetadataWorker(info_hash, peer_address, max_metadata_size).work(),
+            MetadataWorker(infohash, peer_address, max_metadata_size).work(),
             timeout=METADATA_FETCH_TIMEOUT,
         )
     except asyncio.TimeoutError:
@@ -211,8 +211,8 @@ class MetadataFetcher:
 
         self.on_metadata_result = on_metadata_result
 
-    def _on_parent_task_done(self, info_hash: bytes, task: asyncio.Future):
-        del self._active_workers[info_hash]
+    def _on_parent_task_done(self, infohash: bytes, task: asyncio.Future):
+        del self._active_workers[infohash]
         try:
             metadata = task.result()
             if not metadata:
@@ -221,7 +221,7 @@ class MetadataFetcher:
             return
 
         if self.on_metadata_result:
-            self.on_metadata_result(info_hash, metadata)
+            self.on_metadata_result(infohash, metadata)
 
     def _on_child_task_done(
         self, parent_task: asyncio.Future, child_task: asyncio.Future
@@ -242,34 +242,34 @@ class MetadataFetcher:
 
     def fetch(
         self,
-        info_hash: bytes,
+        infohash: bytes,
         peer_address: PeerAddress,
         max_metadata_size: int = 10_000_000,
     ):
         event_loop = asyncio.get_event_loop()
 
-        if info_hash not in self._active_workers:
+        if infohash not in self._active_workers:
             parent_future = event_loop.create_future()
             parent_future.child_count = 0  # type: ignore
             parent_future.add_done_callback(
-                lambda f: self._on_parent_task_done(info_hash, f)
+                lambda f: self._on_parent_task_done(infohash, f)
             )
-            self._active_workers[info_hash] = parent_future
+            self._active_workers[infohash] = parent_future
 
-        parent_future = self._active_workers[info_hash]
+        parent_future = self._active_workers[infohash]
 
         if parent_future.done():
             return
 
         if (
             parent_future.child_count  # type: ignore
-            >= METADATA_MAX_SIMULTANEOUS_WORKERS_PER_INFO_HASH
+            >= METADATA_MAX_SIMULTANEOUS_WORKERS_PER_infohash
         ):
             return
 
         task = asyncio.ensure_future(
             fetch_metadata(
-                info_hash=info_hash,
+                infohash=infohash,
                 peer_address=peer_address,
                 max_metadata_size=max_metadata_size,
             )

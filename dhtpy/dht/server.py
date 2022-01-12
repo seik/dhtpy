@@ -84,7 +84,7 @@ class Server(DHTDispatcher):
     def on_announce_peer_query(self, node: Node, data: dict):
         self.routing_table.add_peer(
             Peer(
-                info_hash=data[b"a"][b"info_hash"],
+                infohash=data[b"a"][b"infohash"],
                 address=node.address,
                 port=node.port,
             ),
@@ -101,7 +101,7 @@ class Server(DHTDispatcher):
         )
 
     def on_get_peers_query(self, node: Node, data: dict):
-        peers = self.routing_table.get_peers(data[b"a"][b"info_hash"])
+        peers = self.routing_table.get_peers(data[b"a"][b"infohash"])
         if peers:
             self.send_message(
                 node,
@@ -117,7 +117,7 @@ class Server(DHTDispatcher):
             )
         else:
             closest_nodes = self.routing_table.get_closest_nodes(
-                data[b"a"][b"info_hash"]
+                data[b"a"][b"infohash"]
             )
             self.send_message(
                 node,
@@ -143,9 +143,9 @@ class Server(DHTDispatcher):
             self.routing_table.add(node)
 
     def on_announce_peer_response(
-        self, tid: bytes, nid: int, info_hash: bytes, node: Node
+        self, tid: bytes, nid: bytes, infohash: bytes, node: Node
     ):
-        logger.debug(f"On announce peer, infohash {info_hash.hex()}")
+        logger.debug(f"On announce peer, infohash {infohash.hex()}")
 
     def on_get_peers_response(
         self, tid: bytes, token: bytes, node: List[Node], values: List[bytes]
@@ -164,12 +164,12 @@ class Server(DHTDispatcher):
 
     def get_peers(
         self,
-        info_hash: bytes,
+        infohash: bytes,
         no_seed: bool = False,
         scrape: bool = False,
     ) -> None:
         # TODO: fix None, should be a node to contact, using closest in routing table
-        self.rpc.get_peers(self.tid, info_hash, None, self.node.id, no_seed, scrape)  # type: ignore
+        self.rpc.get_peers(self.tid, infohash, None, self.node.id, no_seed, scrape)  # type: ignore
 
     async def start(self, address: str = "0.0.0.0", port: int = 6881, run_forever=True):
         await self.rpc.start()
