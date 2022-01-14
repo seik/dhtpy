@@ -21,7 +21,7 @@ def decode_nodes(encoded_nodes: bytes) -> List[Node]:
     for i in range(0, len(encoded_nodes), 26):
         bytes_node = encoded_nodes[i : i + 26]
 
-        nid = int.from_bytes(bytes_node[:20], "big")
+        nid = bytes_node[:20].hex()
 
         try:
             address = inet_ntoa(bytes_node[20:24])

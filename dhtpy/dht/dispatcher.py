@@ -29,12 +29,12 @@ class DHTDispatcher:
     def _get_node_from_data(self, address: Tuple[str, int], data: dict):
         port = address[1]
 
-        node_id = 0
+        node_id = "0000000000000000000000000000000000000000"
         if b"a" in data:
-            node_id = int.from_bytes(data[b"a"][b"id"], "big")
+            node_id = data[b"a"][b"id"].hex()
 
         if b"r" in data:
-            node_id = int.from_bytes(data[b"r"][b"id"], "big")
+            node_id = data[b"r"][b"id"].hex()
 
         # For queries, if implied_port == 0 then use the port of the data, with the
         # port of the node as fallback in case of a malformed response

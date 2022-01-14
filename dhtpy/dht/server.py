@@ -28,7 +28,7 @@ class Server(DHTDispatcher):
 
         self.rpc: RPC = RPC()
 
-        self.routing_table: RoutingTable = RoutingTable(max_neighbors)
+        self.routing_table: RoutingTable = RoutingTable()
         self._maintain_routing_table_interval = 300  # in seconds
 
         super().__init__(self.rpc)

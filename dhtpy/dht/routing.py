@@ -85,11 +85,11 @@ class RoutingTable:
 
     def add_peer(self, peer: Peer, node: Node):
         # TODO: fix
-        self.nodes[node.id].peers[peer.infohash] = peer
+        # self.nodes[node.id].peers[peer.infohash] = peer
+        pass
 
-    def get_closest_nodes(self, nid: bytes, limit=10):
-        # TODO: revisit this
-        """Get closest nodes to `node`, with a limit of `limit`"""
+    def get_closest_nodes(self, nid: str, limit=8):
+        """Get closest nodes to the id provided"""
         return sorted(
             self.nodes,
             key=lambda node: Node.calculate_distance(nid, node.id),
@@ -119,7 +119,7 @@ class RoutingTable:
         ]
         for new_bucket in buckets:
             for node in bucket.nodes:
-                if new_bucket.in_range(node):
+                if new_bucket.in_range(node.id):
                     new_bucket.add(node)
 
         # Replace old bucket and add new one

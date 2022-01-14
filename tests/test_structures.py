@@ -17,14 +17,14 @@ class TestNode:
         another_node = Node.create_random("0.0.0.0", 1234)
         # same id, no distance
         another_node.id = self.node.id
-        distance = Node.calculate_distance(self.node.id_bytes, another_node.id_bytes)
-        assert distance == bytes.fromhex("0000000000000000000000000000000000000000")
+        distance = Node.calculate_distance(self.node.id, another_node.id)
+        assert distance == 0
 
         # distance should be 1 as only last bit differ
         self.node.id = "0000000000000000000000000000000000000010"
         another_node.id = "0000000000000000000000000000000000000011"
-        distance = Node.calculate_distance(self.node.id_bytes, another_node.id_bytes)
-        assert distance == bytes.fromhex("0000000000000000000000000000000000000001")
+        distance = Node.calculate_distance(self.node.id, another_node.id)
+        assert distance == 1
 
     def test_is_unheard(self):
         self.node.last_contact = datetime.now() - timedelta(minutes=10)

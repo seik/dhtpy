@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import struct
-from ctypes import Union
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from ipaddress import ip_address
-from typing import Set
+from typing import Union
 
 from black import os
 from expiringdict import ExpiringDict  # type: ignore
@@ -80,8 +79,10 @@ class Node:
         return cls(nid, address, port)
 
     @staticmethod
-    def calculate_distance(nid: bytes, another_nid: bytes) -> bytes:
-        return bytes(a ^ b for a, b in zip(nid, another_nid))
+    def calculate_distance(nid: str, another_nid: str) -> int:
+        xor_ids = "".join([str(ord(a) ^ ord(b)) for a, b in zip(nid, another_nid)])
+        hex_bytes = bytes.fromhex(xor_ids)
+        return int.from_bytes(hex_bytes, "big")
 
     def update_last_contact(self):
         self.last_contact = datetime.now()
@@ -145,12 +146,12 @@ class Bucket:
         return bytes.fromhex(self.end)
 
     @property
-    def start_int(self) -> bytes:
+    def start_int(self) -> int:
         """Returns start as int"""
         return int.from_bytes(self.start_bytes, "big")
 
     @property
-    def end_int(self) -> bytes:
+    def end_int(self) -> int:
         """Returns end as int"""
         return int.from_bytes(self.end_bytes, "big")
 
@@ -181,10 +182,19 @@ class Bucket:
 
     def remove(self, node: Node) -> bool:
         """Given a node, remove it from the bucket"""
-        self.nodes.remove(node)
+        try:
+            self.nodes.remove(node)
+        except KeyError:
+            return False
+        else:
+            return True
 
     def in_range(self, nid: Union[bytes, int, str]) -> bool:
         """Checks if the node id is in range of this node."""
         if isinstance(nid, str):
             nid = bytes.fromhex(nid)
+
+        if isinstance(nid, int):
+            return self.start_int <= nid < self.end_int
+
         return self.start_bytes <= nid < self.end_bytes
